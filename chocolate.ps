@@ -1,0 +1,353 @@
+%!PS
+
+% GhostScript invocation:
+%
+% gs -sDEVICE=pngalpha -sOutputFile=chocolate_%02d.png -r72 -dNOPAUSE
+%    -dBATCH -sPAPERSIZE=letter chocolate.ps
+
+% Define the width and height of the page in points.
+%
+/pagewidth 85 72 mul 10 div def     % 8.5 inches
+/pageheight 11 72 mul def           % 11 inches
+
+% Define the width/height of chocolate cells in points
+%
+/celldim 54 def   % 3/4 inch
+
+% Store the color for the chocolate background as an RGB array
+%
+/chcolor [0.588 0.294 0.0] def
+
+% Set the width of drawn lines in 1/72 inch units
+%
+% 4 setlinewidth
+
+% Figure out total dimensions of 5x8 chocolate
+%
+/barwidth 5 celldim mul def
+/barheight 8 celldim mul def
+
+% Figure out horizontal and vertical displacement to center chocolate
+%
+/hframe pagewidth barwidth sub 2 div def
+/vframe pageheight barheight sub 2 div def
+
+% Render square line caps and miter joins since everything is square
+%
+2 setlinecap
+0 setlinejoin
+
+% Function which draws and fills the complete chocolate bar
+%
+/drawbar {
+  % Render the full chocolate bar without the cell divisions
+  newpath
+  
+  hframe vframe moveto
+  0 barheight rlineto
+  barwidth 0 rlineto
+  0 barheight neg rlineto
+  
+  closepath
+  
+  chcolor 0 get
+  chcolor 1 get
+  chcolor 2 get
+    setrgbcolor
+      gsave
+        fill
+      grestore
+  
+  0.0 0.0 0.0 setrgbcolor
+  4 setlinewidth
+  stroke
+  
+  % Make the vertical divisions
+  1 1 4 {
+  
+    % Compute horizontal offset of division
+    celldim mul
+    
+    % Figure out X of division
+    hframe add
+    
+    % Move to bottom of division line
+    vframe moveto
+    
+    % Draw the division line
+    0 barheight rlineto
+    stroke
+  
+  } for
+  
+  % Make the horizontal divisions
+  1 1 7 {
+    
+    % Compute vertical offset of division
+    celldim mul
+    
+    % Figure out Y of division
+    vframe add
+    
+    % Move to left of division line
+    hframe exch moveto
+    
+    % Draw the division line
+    barwidth 0 rlineto
+    stroke
+  
+  } for
+} bind def
+
+% Function which draws and fills only the bottom piece of the chocolate
+% bar
+%
+/drawbottom {
+
+  % Save graphics state
+  gsave
+  
+  % Define the clipping path by first moving to left side of the page,
+  % vertical level of the top of the second row from bottom
+  0 vframe celldim 2 mul add moveto
+  
+  % Go to the start of the division
+  hframe 0 rlineto
+  
+  % This is the division line
+  barwidth celldim 2 mul rlineto
+  
+  % Go a full bar width to the right
+  barwidth 0 rlineto
+  
+  % Now go to bottom of page
+  0 celldim 4 mul vframe add neg rlineto
+  
+  % Back to bottom-left corner of page
+  0 0 lineto
+  
+  % Close path and establish clipping area
+  closepath
+  clip
+  newpath
+  
+  % Draw the full chocolate bar with everything but the bottom piece
+  % clipped out
+  drawbar
+  
+  % Restore graphics state
+  grestore
+
+} bind def
+
+% Function which draws and fills all pieces except the bottom piece of
+% the chocolate bar -- in other words, everything above the diagonal
+% division line
+%
+/drawtophalf {
+
+  % Save graphics state
+  gsave
+
+  % Define the clipping path by first moving to left side of the page,
+  % vertical level of the top of the second row from bottom
+  0 vframe celldim 2 mul add moveto
+  
+  % Go to the start of the division
+  hframe 0 rlineto
+  
+  % This is the division line
+  barwidth celldim 2 mul rlineto
+  
+  % Go a full bar width to the right
+  barwidth 0 rlineto
+  
+  % Go a full bar height up
+  0 barheight rlineto
+  
+  % Now go to top left corner of page
+  0 pageheight lineto
+  
+  % Close path and establish clipping area
+  closepath
+  clip
+  newpath
+  
+  % Draw the full chocolate bar with the bottom piece clipped out
+  drawbar
+
+  % Restore graphics state
+  grestore
+
+} bind def
+
+% Function which draws and fills only the right piece of the chocolate
+% bar
+%
+/drawright {
+
+  % Save graphics state
+  gsave
+  
+  % Define clipping area as right half of page such that only the last
+  % two columns of the chocolate bar are included
+  hframe celldim 3 mul add 0 moveto
+  0 pageheight rlineto
+  pagewidth pageheight lineto
+  pagewidth 0 lineto
+  closepath
+  clip
+  newpath
+  
+  % Draw just the top half of the chocolate bar with this clipping
+  % enabled
+  drawtophalf
+  
+  % Restore graphics state
+  grestore
+
+} bind def
+
+% Function which draws and fills only the top-left side part of the
+% chocolate bar
+%
+/drawsidepart {
+  
+  % Save graphics state
+  gsave
+  
+  % Define clipping area as left half of page such that all but the last
+  % two columns of the chocolate bar are included
+  0 0 moveto
+  hframe celldim 3 mul add 0 lineto
+  0 pageheight rlineto
+  0 pageheight lineto
+  closepath
+  clip
+  newpath
+  
+  % Draw just the top half of the chocolate bar with this clipping
+  % enabled
+  drawtophalf
+  
+  % Restore graphics state
+  grestore
+  
+} bind def
+
+% Function which draws and fills only the middle-left piece of the
+% chocolate bar
+%
+/drawleft {
+
+  % Save graphics state
+  gsave
+  
+  % Define clipping area as bottom half of page such that all but the
+  % top row of the chocolate bar is included
+  0 0 moveto
+  0 vframe celldim 7 mul add lineto
+  pagewidth 0 rlineto
+  pagewidth 0 lineto
+  closepath
+  clip
+  newpath
+  
+  % Draw just the side part of the chocolate bar with this clipping
+  % enabled
+  drawsidepart
+  
+  % Restore graphics state
+  grestore
+
+} bind def
+
+% Function which draws and fills only the top-left piece of the
+% chocolate bar
+%
+/drawtop {
+
+  % Save graphics state
+  gsave
+  
+  % Define clipping area as top half of page such that only the top row
+  % of the chocolate bar is included
+  0 vframe celldim 7 mul add moveto
+  pagewidth 0 rlineto
+  pagewidth pageheight lineto
+  0 pageheight lineto
+  closepath
+  clip
+  newpath
+  
+  % Draw just the side part of the chocolate bar with this clipping
+  % enabled
+  drawsidepart
+  
+  % Restore graphics state
+  grestore
+
+} bind def
+
+% Function to draw a requested frame; put the frame number on the stack
+% before calling; frame 1 is first frame
+%
+% FRAME 1 : original positions
+% FRAME 2 : bottom piece first motion
+% FRAME 3 : right piece displacement
+% FRAME 4 : top piece displacement
+% FRAME 5 : bottom piece second displacement
+%
+/animate {
+
+  % Left piece is always drawn in same position
+  gsave
+  drawleft
+  grestore
+  
+  % Bottom piece is only in original position for first frame, moved
+  % position for frames 2-4 and in adjusted position for frame 5
+  gsave
+  dup dup 5 lt exch 1 gt and {
+    % Frames 2-4 -- move bottom piece down one cell and two cells left
+    celldim 2 mul neg celldim neg translate
+  } if
+  dup 5 ge {
+    % Frames 5+ -- move bottom piece two cells left as before, except
+    % maintain the slope so there is no gap
+    celldim 2 mul neg
+    dup 2 mul 5 div
+      translate
+  } if
+  drawbottom
+  grestore
+
+  % Right piece moves starting at frame 3
+  gsave
+  dup 3 ge {
+    % Frames 3+ -- move right piece down two cells and five cells left
+    celldim 5 mul neg celldim 2 mul neg translate
+  } if
+  drawright
+  grestore
+  
+  % Top piece moves starting at frame 4
+  gsave
+  dup 4 ge {
+    % Frames 4+ -- move the top piece down one cell and three cells left
+    celldim 3 mul neg celldim neg translate
+  } if
+  drawtop
+  grestore
+
+  % Pop frame number off stack
+  pop
+
+} bind def
+
+% Render all the frames on separate pages
+%
+1 1 5 {
+  animate
+  showpage
+} for
