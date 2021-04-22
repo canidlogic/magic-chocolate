@@ -14,13 +14,30 @@
 %
 /celldim 54 def   % 3/4 inch
 
-% Store the color for the chocolate background as an RGB array
+% Store the colors of the left, top, right, and bottom parts of the
+% chocolate, each as an array of normalized R G B float values
 %
-/chcolor [0.588 0.294 0.0] def
+/areacolors [
+  [0.0 1.0 0.0]       % Green for left
+  [1.0 0.5 0.0]       % Orange for top  
+  [0.5 0.0 1.0]       % Magenta for right
+  [0.25 0.75 1.0]     % Sea blue for bottom
+] def
 
-% Set the width of drawn lines in 1/72 inch units
+% Store the ink darkening value, which is multiplied to the chocolate
+% color RGB channels to get the color of the outer border of each cell
 %
-% 4 setlinewidth
+/inkscale 0.5 def
+
+% Store the width of each border within each cell in 1/72 inch units --
+% the array stores the widths in order left top right bottom
+%
+/borderwidths [2 2 5 5] def
+
+% Set the current chocolate color parameter to a default value of 50%
+% gray
+%
+/chcolor [0.5 0.5 0.5] def
 
 % Figure out total dimensions of 5x8 chocolate
 %
@@ -32,71 +49,112 @@
 /hframe pagewidth barwidth sub 2 div def
 /vframe pageheight barheight sub 2 div def
 
-% Render square line caps and miter joins since everything is square
+% Function which draws a single cell of the chocolate bar; the X and Y
+% coordinates of the lower-left corner of the cell are given on the
+% stack:
 %
-2 setlinecap
-0 setlinejoin
+%   [x] [y] drawcell -
+%
+/drawcell {
 
-% Function which draws and fills the complete chocolate bar
-%
-/drawbar {
-  % Render the full chocolate bar without the cell divisions
+  % Save graphics state
+  gsave
+
+  % We will draw two rectangles, so first duplicate the parameters, so
+  % that stack has [x] [y] [x] [y]
+  2 copy
+
+  % Get a path around the full area of the cell
   newpath
   
-  hframe vframe moveto
-  0 barheight rlineto
-  barwidth 0 rlineto
-  0 barheight neg rlineto
-  
+  moveto
+  celldim 0 rlineto
+  0 celldim rlineto
+  celldim neg 0 rlineto
   closepath
   
+  % Fill in the full cell with the current chocolate color, but all
+  % channels multiplied by the ink scale
+  chcolor 0 get inkscale mul
+  chcolor 1 get inkscale mul
+  chcolor 2 get inkscale mul
+    setrgbcolor
+    fill
+  
+  % Use the bottom and left border widths to go to the lower-left corner
+  % of the inner rectangle
+  newpath
+  
+  exch
+    borderwidths 0 get add  % Add left border to X
+  exch
+  borderwidths 3 get add    % Add right border to Y
+  
+  moveto
+  
+  % Compute the width and height of the inner rectangle
+  celldim                   % Start with cell width
+    borderwidths 0 get sub  % Subtract left border
+    borderwidths 2 get sub  % Subtract right border
+  
+  celldim                   % Start with cell height
+    borderwidths 1 get sub  % Subtract top border
+    borderwidths 3 get sub  % Subtract bottom border
+  
+  % Draw the inner rectangle
+  dup 0 exch rlineto
+  exch dup 0 rlineto exch
+  dup neg 0 exch rlineto
+  closepath
+  
+  % Pop the inner dimensions from stack
+  pop
+  pop
+  
+  % Fill in the inner rectangle with the current chocolate color
   chcolor 0 get
   chcolor 1 get
   chcolor 2 get
     setrgbcolor
-      gsave
-        fill
-      grestore
+    fill
+
+  % Restore graphics state
+  grestore
+} bind def
+
+% Function which draws and fills the complete chocolate bar
+%
+/drawbar {
   
-  0.0 0.0 0.0 setrgbcolor
-  4 setlinewidth
-  stroke
+  % Local dictionary
+  5 dict begin
   
-  % Make the vertical divisions
-  1 1 4 {
-  
-    % Compute horizontal offset of division
-    celldim mul
+  % Draw each column of the chocolate bar
+  0 1 4 {
     
-    % Figure out X of division
-    hframe add
+    % Define the X coordinate of the current column
+    /currentx exch def
     
-    % Move to bottom of division line
-    vframe moveto
+    % Draw each cell this column
+    0 1 7 {
     
-    % Draw the division line
-    0 barheight rlineto
-    stroke
-  
+      % Define the Y coordinate of the current row
+      /currenty exch def
+      
+      % Compute the X,Y coordinates of the bottom-left corner of this
+      % chocolate bar cell
+      hframe currentx celldim mul add
+      vframe currenty celldim mul add
+      
+      % Draw this cell
+      drawcell
+    
+    } for
   } for
   
-  % Make the horizontal divisions
-  1 1 7 {
-    
-    % Compute vertical offset of division
-    celldim mul
-    
-    % Figure out Y of division
-    vframe add
-    
-    % Move to left of division line
-    hframe exch moveto
-    
-    % Draw the division line
-    barwidth 0 rlineto
-    stroke
+  % End local dictionary
+  end
   
-  } for
 } bind def
 
 % Function which draws and fills only the bottom piece of the chocolate
@@ -104,11 +162,12 @@
 %
 /drawbottom {
 
-  % Save graphics state
-  gsave
+  % Save clipping path
+  clipsave
   
   % Define the clipping path by first moving to left side of the page,
   % vertical level of the top of the second row from bottom
+  newpath
   0 vframe celldim 2 mul add moveto
   
   % Go to the start of the division
@@ -131,26 +190,30 @@
   clip
   newpath
   
+  % Set the color
+  /chcolor areacolors 3 get def
+  
   % Draw the full chocolate bar with everything but the bottom piece
   % clipped out
   drawbar
   
-  % Restore graphics state
-  grestore
+  % Restore clipping path
+  cliprestore
 
 } bind def
 
 % Function which draws and fills all pieces except the bottom piece of
 % the chocolate bar -- in other words, everything above the diagonal
-% division line
+% division line; this does NOT set the current chocolate color
 %
 /drawtophalf {
 
-  % Save graphics state
-  gsave
+  % Save clip state
+  clipsave
 
   % Define the clipping path by first moving to left side of the page,
   % vertical level of the top of the second row from bottom
+  newpath
   0 vframe celldim 2 mul add moveto
   
   % Go to the start of the division
@@ -176,8 +239,8 @@
   % Draw the full chocolate bar with the bottom piece clipped out
   drawbar
 
-  % Restore graphics state
-  grestore
+  % Restore clip state
+  cliprestore
 
 } bind def
 
@@ -186,43 +249,54 @@
 %
 /drawright {
 
-  % Save graphics state
-  gsave
+  % Save clipping state
+  clipsave
   
   % Define clipping area as right half of page such that only the last
   % two columns of the chocolate bar are included
+  newpath
+  
   hframe celldim 3 mul add 0 moveto
+  
   0 pageheight rlineto
   pagewidth pageheight lineto
   pagewidth 0 lineto
   closepath
+  
   clip
   newpath
+  
+  % Set the chocolate color
+  /chcolor areacolors 2 get def
   
   % Draw just the top half of the chocolate bar with this clipping
   % enabled
   drawtophalf
   
-  % Restore graphics state
+  % Restore clipping state
   grestore
 
 } bind def
 
 % Function which draws and fills only the top-left side part of the
-% chocolate bar
+% chocolate bar; this does NOT set the current chocolate color
 %
 /drawsidepart {
   
-  % Save graphics state
-  gsave
+  % Save clipping state
+  clipsave
   
   % Define clipping area as left half of page such that all but the last
   % two columns of the chocolate bar are included
+  newpath
+  
   0 0 moveto
+  
   hframe celldim 3 mul add 0 lineto
   0 pageheight rlineto
   0 pageheight lineto
   closepath
+  
   clip
   newpath
   
@@ -230,8 +304,8 @@
   % enabled
   drawtophalf
   
-  % Restore graphics state
-  grestore
+  % Restore clipping state
+  cliprestore
   
 } bind def
 
@@ -240,25 +314,32 @@
 %
 /drawleft {
 
-  % Save graphics state
-  gsave
+  % Save clipping state
+  clipsave
   
   % Define clipping area as bottom half of page such that all but the
   % top row of the chocolate bar is included
+  newpath
+  
   0 0 moveto
+  
   0 vframe celldim 7 mul add lineto
   pagewidth 0 rlineto
   pagewidth 0 lineto
   closepath
+  
   clip
   newpath
+  
+  % Set the chocolate color
+  /chcolor areacolors 0 get def
   
   % Draw just the side part of the chocolate bar with this clipping
   % enabled
   drawsidepart
   
-  % Restore graphics state
-  grestore
+  % Restore clipping state
+  cliprestore
 
 } bind def
 
@@ -267,25 +348,32 @@
 %
 /drawtop {
 
-  % Save graphics state
-  gsave
+  % Save clipping state
+  clipsave
   
   % Define clipping area as top half of page such that only the top row
   % of the chocolate bar is included
+  newpath
+  
   0 vframe celldim 7 mul add moveto
+  
   pagewidth 0 rlineto
   pagewidth pageheight lineto
   0 pageheight lineto
   closepath
+  
   clip
   newpath
+  
+  % Set the chocolate color
+  /chcolor areacolors 1 get def
   
   % Draw just the side part of the chocolate bar with this clipping
   % enabled
   drawsidepart
   
-  % Restore graphics state
-  grestore
+  % Restore clipping state
+  cliprestore
 
 } bind def
 
